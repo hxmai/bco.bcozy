@@ -71,6 +71,16 @@
             <artifactId>dal.remote</artifactId>
             <version>0.5-SNAPSHOT</version>
         </dependency>
+        <dependency>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+            <version>1.0.4</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-cli</groupId>
+            <artifactId>commons-cli</artifactId>
+            <version>1.0</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -118,6 +128,7 @@
                     <copyConfigurationDirectory>true</copyConfigurationDirectory>
                 </configuration>
             </plugin>
+
             <plugin>
                 <groupId>org.eclipse.m2e</groupId>
                 <artifactId>lifecycle-mapping</artifactId>
@@ -140,9 +151,6 @@
                                         <goal>cpd-check</goal>
                                     </goals>
                                 </pluginExecutionFilter>
-                                <action>
-                                    <ignore></ignore>
-                                </action>
                             </pluginExecution>
                         </pluginExecutions>
                     </lifecycleMappingMetadata>
@@ -214,6 +222,120 @@
                 <configuration>
                     <show>protected</show>
                     <quiet>true</quiet>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>webstart-maven-plugin</artifactId>
+                <version>1.0-beta-6</version>
+
+                <dependencies>
+                    <!-- TODO(pw): This dependency is just a workaround for 1.0-beta-6
+                         until 1.0-beta-7 is released. -->
+                    <dependency>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>webstart-pack200-impl</artifactId>
+                        <version>1.0-beta-6</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>keytool-api-1.7</artifactId>
+                        <version>1.5</version>
+                    </dependency>
+                </dependencies>
+
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>jnlp</goal> <!-- use jnlp, jnlp-inline or jnlp-single as appropriate -->
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <!--outputDirectory></outputDirectory--> <!-- not required?? -->
+
+                    <!-- Set to true to exclude all transitive dependencies. Default is false. -->
+                    <excludeTransitive>false</excludeTransitive>
+
+                    <!-- The path where the libraries are stored within the jnlp structure. not required. by default the libraries are within the working directory -->
+                    <libPath>lib</libPath>
+
+                    <!-- [optional] transitive dependencies filter - if omitted, all transitive dependencies are included -->
+                    <dependencies>
+                        <!-- Note that only groupId and artifactId must be specified here. because of a limitation of the Include/ExcludesArtifactFilter -->
+                        <includes>
+                            <include>commons-logging:commons-logging</include>
+                            <include>commons-cli:commons-cli</include>
+                        </includes>
+                        <!-- excludes>
+                          <exclude></exclude>
+                        <excludes-->
+                    </dependencies>
+
+                    <!--resourcesDirectory>${project.basedir}/src/main/jnlp/resources</resourcesDirectory--> <!-- default value -->
+
+                    <!-- JNLP generation -->
+                    <jnlp>
+                        <!-- default values -->
+                        <!--inputTemplateResourcePath>${project.basedir}</inputTemplateResourcePath-->
+                        <!--inputTemplate>src/main/jnlp/template.vm</inputTemplate--> <!-- relative to inputTemplateResourcePath -->
+                        <outputFile>app.jnlp</outputFile> <!-- defaults to launch.jnlp -->
+
+                        <!-- used to automatically identify the jar containing the main class. -->
+                        <!-- this is perhaps going to change -->
+                        <mainClass>org.apache.commons.cli.BasicParser</mainClass>
+                    </jnlp>
+
+
+                    <!-- SIGNING -->
+                    <!-- defining this will automatically sign the jar and its dependencies, if necessary -->
+                    <!--<sign>
+                        <keystore>fillme</keystore>
+                        <keypass>fillme</keypass>  &lt;!&ndash; we need to override passwords easily from the command line. ${keypass} &ndash;&gt;
+                        <storepass>fillme</storepass> &lt;!&ndash; ${storepass} &ndash;&gt;
+                        &lt;!&ndash;storetype>fillme</storetype&ndash;&gt;
+                        <alias>fillme</alias>
+
+                        &lt;!&ndash;validity>fillme</validity&ndash;&gt;
+
+                        &lt;!&ndash; only required for generating the keystore &ndash;&gt;
+                        &lt;!&ndash;dnameCn>fillme</dnameCn>
+                        <dnameOu>fillme</dnameOu>
+                        <dnameO>fillme</dnameO>
+                        <dnameL>fillme</dnameL>
+                        <dnameSt>fillme</dnameSt>
+                        <dnameC>fillme</dnameC&ndash;&gt;
+
+                        <verify>true</verify> &lt;!&ndash; verify that the signing operation succeeded &ndash;&gt;
+
+                        &lt;!&ndash; KEYSTORE MANAGEMENT &ndash;&gt;
+                        <keystoreConfig>
+                            <delete>true</delete> &lt;!&ndash; delete the keystore &ndash;&gt;
+                            <gen>true</gen>       &lt;!&ndash; optional shortcut to generate the store. &ndash;&gt;
+                        </keystoreConfig>
+                    </sign>-->
+
+
+                    <!-- BUILDING PROCESS -->
+
+                    <pack200>
+                        <enabled>true</enabled>
+                    </pack200>
+
+                    <gzip>true</gzip> <!-- default force when pack200 false, true when pack200 selected ?? -->
+
+                    <!-- causes a version attribute to be output in each jar resource element, optional, default is false -->
+                    <outputJarVersions>true</outputJarVersions>
+
+                    <!--install>false</install--> <!-- not yet supported -->
+                    <verbose>true</verbose>
+
+                    <updateManifestEntries>
+                        <Permissions>all-permissions</Permissions>
+                        <Codebase>*</Codebase>
+                    </updateManifestEntries>
+
                 </configuration>
             </plugin>
         </plugins>
