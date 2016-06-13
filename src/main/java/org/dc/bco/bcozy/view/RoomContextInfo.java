@@ -36,7 +36,6 @@ public class RoomContextInfo extends AnchorPane {
         roomInfo = new Label("No room selected.");
 
         this.getChildren().add(roomInfo);
-        this.getStyleClass().add("dropshadow-bottom-bg");
 
         this.setLeftAnchor(roomInfo, Constants.INSETS);
         this.setRightAnchor(roomInfo, Constants.INSETS);
@@ -44,11 +43,4 @@ public class RoomContextInfo extends AnchorPane {
         this.setBottomAnchor(roomInfo, Constants.INSETS);
     }
 
-    /**
-     * Getter Method for the Label.
-     * @return label
-     */
-    public Label getRoomInfo() {
-        return roomInfo;
-    }
 }

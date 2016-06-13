@@ -18,23 +18,50 @@
  */
 package org.dc.bco.bcozy.view;
 
-//import javafx.animation.KeyFrame;
-//import javafx.animation.KeyValue;
-//import javafx.animation.Timeline;
+import de.jensd.fx.glyphs.materialicons.MaterialIcon;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.VBox;
-import org.dc.bco.bcozy.view.mainmenupanes.UserPane;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.*;
+import org.dc.bco.bcozy.view.mainmenupanes.AvailableUsersPane;
+import org.dc.bco.bcozy.view.mainmenupanes.ConnectionPane;
+import org.dc.bco.bcozy.view.mainmenupanes.LoginPane;
+import org.dc.bco.bcozy.view.mainmenupanes.SettingsPane;
+import org.dc.jps.core.JPService;
+import org.dc.jps.exception.JPNotAvailableException;
+import org.dc.jps.preset.JPDebugMode;
+import org.dc.jul.exception.printer.ExceptionPrinter;
+import org.dc.jul.exception.printer.LogLevel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Created by hoestreich on 11/10/15.
  */
-public class MainMenu extends AnchorPane {
+public class MainMenu extends StackPane {
 
-    private final Button mainButton;
-    private final UserPane userPane;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MainMenu.class);
+
+    private final Button initRemoteButton;
+    private final Button fetchLocationButton;
+    private final Button fillHashesButton;
+    private final Button fillContextMenuButton;
+    private final LoginPane loginPane;
+    private final FloatingButton mainMenuFloatingButton;
+    private final VBox verticalLayout;
+    private final VBox verticalLayoutSmall;
+    private final double height;
+    private final double width;
+    private boolean maximized;
+    private final ConnectionPane connectionPane;
+    private final AvailableUsersPane availableUsersPanePane;
+    private final SettingsPane settingsPane;
+    private final ImageView logoView;
+    private final ImageView logoViewSmall;
+
     /**
      * Constructor for the MainMenu.
      * @param height Height
@@ -42,63 +69,178 @@ public class MainMenu extends AnchorPane {
      */
     public MainMenu(final double height, final double width) {
 
+        // Initializing the container (StackPane)
+        this.height = height;
+        this.width = width;
+        this.maximized = true;
         this.setMinHeight(height);
         this.setMinWidth(width);
-        this.getStyleClass().add("dropshadow-right-bg");
 
-        final VBox verticalLayout = new VBox(Constants.INSETS);
+        // Initializing components
+        verticalLayout = new VBox(Constants.INSETS);
+        verticalLayout.setAlignment(Pos.TOP_CENTER);
 
-        userPane = new UserPane();
+        verticalLayoutSmall = new VBox(Constants.INSETS * 2);
+        verticalLayoutSmall.setAlignment(Pos.TOP_CENTER);
 
-        mainButton = new Button("Test Location Registry");
-        mainButton.getStyleClass().addAll("large-button", "visible-lg", "visible-md", "visible-sm", "visible-xs");
+        loginPane = new LoginPane();
 
-        verticalLayout.getChildren().addAll(userPane, mainButton);
-        this.getChildren().add(verticalLayout);
+        initRemoteButton = new Button("Init RegistryRemotes");
+        fetchLocationButton = new Button("Fetch Location");
+        fillHashesButton = new Button("Fill Hashes");
+        fillContextMenuButton = new Button("Fill ContextMenu");
 
-        this.setLeftAnchor(verticalLayout, Constants.INSETS);
-        this.setRightAnchor(verticalLayout, Constants.INSETS);
-        this.setTopAnchor(verticalLayout, Constants.INSETS);
-        this.setBottomAnchor(verticalLayout, Constants.INSETS);
-        //this.setVisible(false);
+        logoView = ImageViewProvider
+                .createImageView("/icons/bcozy.png", Constants.MAXLOGOWIDTH, Double.MAX_VALUE);
+
+        logoViewSmall = ImageViewProvider.createImageView("/icons/bc.png", Constants.MIDDLE_ICON);
+
+        connectionPane = new ConnectionPane();
+
+        availableUsersPanePane = new AvailableUsersPane();
+
+        settingsPane = new SettingsPane();
+
+        mainMenuFloatingButton = new FloatingButton(new SVGIcon(MaterialIcon.MENU, Constants.MIDDLE_ICON, true));
+
+        // Setting Alignment in Stackpane
+        StackPane.setAlignment(mainMenuFloatingButton, Pos.TOP_RIGHT);
+        StackPane.setAlignment(verticalLayout, Pos.TOP_CENTER);
+        StackPane.setAlignment(verticalLayoutSmall, Pos.TOP_CENTER);
+        mainMenuFloatingButton.translateYProperty().set(-(Constants.FLOATING_BUTTON_OFFSET));
+
+        // Adding components to their parents
+        try {
+            if (JPService.getProperty(JPDebugMode.class).getValue()) {
+                verticalLayout.getChildren()
+                        .addAll(logoView, initRemoteButton, fetchLocationButton, fillHashesButton,
+                                fillContextMenuButton, connectionPane, loginPane, availableUsersPanePane, settingsPane);
+            } else {
+                verticalLayout.getChildren()
+                        .addAll(logoView, connectionPane, loginPane, availableUsersPanePane, settingsPane);
+            }
+        } catch (JPNotAvailableException e) {
+            ExceptionPrinter.printHistory(e, LOGGER, LogLevel.ERROR);
+            verticalLayout.getChildren()
+                    .addAll(logoView, connectionPane, loginPane, availableUsersPanePane, settingsPane);
+        }
+        this.getChildren().addAll(verticalLayout, mainMenuFloatingButton);
+
+        // Styling components with CSS
+        //CHECKSTYLE.OFF: MultipleStringLiterals
+        this.getStyleClass().addAll("main-menu");
+        //CHECKSTYLE.ON: MultipleStringLiterals
     }
 
     /**
-     * Configure the MainButton.
+     * Configure the initRemoteButton.
      * @param eventHandler EventHandler
      */
-    public void addMainButtonEventHandler(final EventHandler<ActionEvent> eventHandler) {
-        mainButton.setOnAction(eventHandler);
+    public void addInitRemoteButtonEventHandler(final EventHandler<ActionEvent> eventHandler) {
+        initRemoteButton.setOnAction(eventHandler);
     }
 
     /**
-     * Getter for the UserPane.
-     * @return the instance of the userPane
+     * Configure the fetchLocationButton.
+     * @param eventHandler EventHandler
      */
-    public UserPane getUserPane() {
-        return userPane;
+    public void addFetchLocationButtonEventHandler(final EventHandler<ActionEvent> eventHandler) {
+        fetchLocationButton.setOnAction(eventHandler);
+    }
+
+    /**
+     * Configure the fillHashesButton.
+     * @param eventHandler EventHandler
+     */
+    public void addFillHashesButtonEventHandler(final EventHandler<ActionEvent> eventHandler) {
+        fillHashesButton.setOnAction(eventHandler);
+    }
+
+    /**
+     * Configure the fillContextMenuButton.
+     * @param eventHandler EventHandler
+     */
+    public void addFillContextMenuButtonEventHandler(final EventHandler<ActionEvent> eventHandler) {
+        fillContextMenuButton.setOnAction(eventHandler);
+    }
+
+    /**
+     * Getter for the main menu button.
+     * @return the instance of the main menu button
+     */
+    public FloatingButton getMainMenuFloatingButton() {
+        return mainMenuFloatingButton;
+    }
+
+    /**
+     * Getter for the LoginPane.
+     * @return the instance of the loginPane
+     */
+    public LoginPane getLoginPane() {
+        return loginPane;
+    }
+
+    /**
+     * Getter for the settingsPane.
+     * @return the instance of the settingsPane
+     */
+    public SettingsPane getSettingsPane() {
+        return settingsPane;
+    }
+
+    /**
+     * Getter for the availableUsersPanePane.
+     * @return the instance of the availableUsersPanePane
+     */
+    public AvailableUsersPane getAvailableUsersPanePane() {
+        return availableUsersPanePane;
+    }
+
+    /**
+     * Getter for the connectionPane.
+     * @return the instance of the connectionPane
+     */
+    public ConnectionPane getConnectionPane() {
+        return connectionPane;
+    }
+
+    /**
+     * Getter for the current display state.
+     * @return true if maximzed, false if minimized
+     */
+    public boolean isMaximized() {
+        return maximized;
     }
 
     /**
      * Method to make this menu visible.
      * Animations should be added in the future
      */
-    public void showMainMenu() {
-        this.setVisible(true);
-        //CHECKSTYLE.OFF: MagicNumber
-//        final Timeline timeline = new Timeline(
-//                new KeyFrame(javafx.util.Duration.ZERO, new KeyValue(this., 0)),
-//                new KeyFrame(javafx.util.Duration.millis(500), new KeyValue(this.opacityProperty(), 1))
-//        );
-        //CHECKSTYLE.ON: MagicNumber
-        //timeline.play();
+    public void maximizeMainMenu() {
+        this.maximized = true;
+        this.setMinHeight(height);
+        this.setMinWidth(width);
+        this.getChildren().clear();
+        StackPane.setAlignment(mainMenuFloatingButton, Pos.TOP_RIGHT);
+        connectionPane.maximize();
+        mainMenuFloatingButton.translateYProperty().set(-(Constants.FLOATING_BUTTON_OFFSET));
+        this.getChildren().addAll(verticalLayout, mainMenuFloatingButton);
     }
 
     /**
      * Method to make this menu invisible.
      * Animations should be added in the future
      */
-    public void hideMainMenu() {
-        this.setVisible(false);
+    public void minimizeMainMenu() {
+        this.maximized = false;
+        this.setMinHeight(height);
+        this.setMinWidth(Constants.SMALL_MAIN_MENU_WIDTH);
+        StackPane.setAlignment(mainMenuFloatingButton, Pos.TOP_CENTER);
+        mainMenuFloatingButton.translateYProperty().set(-(Constants.FLOATING_BUTTON_OFFSET));
+        verticalLayoutSmall.getChildren().clear();
+        verticalLayoutSmall.getChildren().addAll(logoViewSmall, connectionPane.getStatusIcon(),
+                loginPane.getStatusIcon(), availableUsersPanePane.getStatusIcon(), settingsPane.getStatusIcon());
+        this.getChildren().clear();
+        this.getChildren().addAll(verticalLayoutSmall, mainMenuFloatingButton);
     }
 }

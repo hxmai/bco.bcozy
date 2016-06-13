@@ -18,6 +18,8 @@
  */
 package org.dc.bco.bcozy.view;
 
+import javafx.beans.property.ReadOnlyDoubleProperty;
+import javafx.geometry.BoundingBox;
 import javafx.scene.layout.BorderPane;
 
 /**
@@ -27,9 +29,9 @@ public class ForegroundPane extends BorderPane {
 
     private final MainMenu mainMenu;
     private final ContextMenu contextMenu;
+    private final CenterPane centerPane;
     private final MenuHeader menuHeader;
     private final InfoFooter infoFooter;
-
     /**
      * Constructor for the ForegroundPane.
      * @param height Height of the application window
@@ -37,16 +39,19 @@ public class ForegroundPane extends BorderPane {
      */
     public ForegroundPane(final double height, final double width) {
         //CHECKSTYLE.OFF: MagicNumber
-        this.mainMenu = new MainMenu(height - 90, 300);
-        this.contextMenu = new ContextMenu(height - 90, 300);
-        this.menuHeader = new MenuHeader(50, width);
+        this.mainMenu = new MainMenu(height - 150, 300);
+        this.contextMenu = new ContextMenu(height - 150, 300);
+        this.menuHeader = new MenuHeader(30, width);
         this.infoFooter = new InfoFooter(20, width);
         //CHECKSTYLE.ON: MagicNumber
+        this.centerPane = new CenterPane();
 
-        this.setTop(this.menuHeader);
+        //this.setTop(this.menuHeader);
         this.setLeft(this.mainMenu);
         this.setRight(this.contextMenu);
         this.setBottom(this.infoFooter);
+        this.setCenter(this.centerPane);
+        this.setTop(this.menuHeader);
         this.setPickOnBounds(false);
     }
 
@@ -67,11 +72,11 @@ public class ForegroundPane extends BorderPane {
     }
 
     /**
-     * Getter for the menu header (top).
-     * @return MenuHeader (HBox)
+     * Getter for the center pane.
+     * @return CenterPane
      */
-    public MenuHeader getMenuHeader() {
-        return menuHeader;
+    public CenterPane getCenterPane() {
+        return centerPane;
     }
 
     /**
@@ -80,5 +85,24 @@ public class ForegroundPane extends BorderPane {
      */
     public InfoFooter getInfoFooter() {
         return infoFooter;
+    }
+
+    /**
+     * Method to provide a bounding box within which the location should be drawn.
+     * @return a bounding box with the values.
+     */
+    public BoundingBox getBoundingBox() {
+        return new BoundingBox(this.mainMenu.getLayoutBounds().getMaxX(),
+                this.menuHeader.getLayoutBounds().getMaxY(),
+                this.centerPane.getWidth(),
+                this.centerPane.getHeight());
+    }
+
+    /**
+     * Method to provide the width property of the bounding box within which the location should be drawn.
+     * @return a property of the width from the bounding box.
+     */
+    public ReadOnlyDoubleProperty getMainMenuWidthProperty() {
+        return this.mainMenu.widthProperty();
     }
 }

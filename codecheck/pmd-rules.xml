@@ -23,6 +23,7 @@
     <rule ref="rulesets/java/design.xml">
         <exclude name="SimplifyBooleanReturns" />
         <exclude name="SingularField" />
+        <exclude name="ConstructorCallsOverridableMethod" />
     </rule>
     <rule ref="rulesets/java/finalizers.xml" />
     <rule ref="rulesets/java/imports.xml" />
@@ -94,6 +95,21 @@
         <properties>
              <!-- equals and hashCode are often complex and they require this... -->
              <property name="violationSuppressRegex" value=".*method (equals|hashCode)\(\).*"/>
+        </properties>
+    </rule>
+    <rule ref="rulesets/java/codesize.xml/TooManyMethods">
+        <properties>
+            <property name="maxmethods" value="25" />
+        </properties>
+    </rule>
+    <rule ref="rulesets/java/codesize.xml/ExcessiveMethodLength">
+        <properties>
+            <property name="minimum" value="200" />
+        </properties>
+    </rule>
+    <rule ref="rulesets/java/codesize.xml/TooManyFields">
+        <properties>
+            <property name="maxfields" value="20" />
         </properties>
     </rule>
 </ruleset>

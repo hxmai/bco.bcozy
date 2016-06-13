@@ -18,20 +18,25 @@
  */
 package org.dc.bco.bcozy.view;
 
-import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.VBox;
-import org.dc.bco.bcozy.model.ShutterInstance;
-import org.dc.bco.bcozy.view.devicepanes.ShutterPane;
+import org.controlsfx.control.HiddenSidesPane;
+import org.dc.bco.bcozy.view.devicepanes.TitledPaneContainer;
 
 /**
  * Created by hoestreich on 11/10/15.
  */
-public class ContextMenu extends AnchorPane {
+public class ContextMenu extends VBox {
 
-    private final RoomContextInfo roomContextInfo;
     private final ContextSortingPane contextSortingPane;
+    private final Label roomInfo;
+    private final ScrollPane verticalScrollPane;
+    private TitledPaneContainer titledPaneContainer;
+
 
     /**
      * Constructor for the ContextMenu.
@@ -42,53 +47,80 @@ public class ContextMenu extends AnchorPane {
 
         this.setMinHeight(height);
         this.setMinWidth(width);
+        this.setPrefHeight(height);
+        //this.setPrefWidth(width);
+        this.setMaxWidth(Double.MAX_VALUE);
 
-        final ScrollPane verticalScrollPane = new ScrollPane();
+        roomInfo = new Label("No room selected.");
+        roomInfo.setAlignment(Pos.CENTER);
+
+        verticalScrollPane = new ScrollPane();
         verticalScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        verticalScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        verticalScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 
-        final VBox verticalOuterLayout = new VBox(Constants.INSETS);
+        final ScrollBar scrollBar = new ScrollBar();
+        scrollBar.setOrientation(Orientation.VERTICAL);
+        final HiddenSidesPane hiddenSidesPane = new HiddenSidesPane();
+        hiddenSidesPane.setContent(verticalScrollPane);
+        hiddenSidesPane.setRight(scrollBar);
+        hiddenSidesPane.setTriggerDistance(Constants.TRIGGER_DISTANCE);
+        hiddenSidesPane.getStyleClass().add("hidden-sides-pane");
 
-        final VBox verticalInnerLayout = new VBox(Constants.INSETS);
+        scrollBar.maxProperty().bind(verticalScrollPane.vmaxProperty());
+        scrollBar.minProperty().bind(verticalScrollPane.vminProperty());
 
-        roomContextInfo = new RoomContextInfo();
-        contextSortingPane = new ContextSortingPane(this.getMinWidth() + (Constants.INSETS * 2));
+        verticalScrollPane.vvalueProperty().bindBidirectional(scrollBar.valueProperty());
 
-        //TODO: Replace with automatic content generation based on the actual selection (in the locationpane)
-        final ShutterPane shutterPane = new ShutterPane(new ShutterInstance("Shutter Living", 50.0));
-        final ShutterPane shutterPane1 = new ShutterPane(new ShutterInstance("Shutter Kitchen", 0.0));
-        final ShutterPane shutterPane2 = new ShutterPane(new ShutterInstance("Shutter Sports", 100.0));
-        final ShutterPane shutterPane3 = new ShutterPane(new ShutterInstance("Shutter Control", 100.0));
+        //TODO: Delete completely - at the moment it is just not added to the rest
+        contextSortingPane = new ContextSortingPane(width + Constants.INSETS);
+        contextSortingPane.setMaxWidth(Double.MAX_VALUE);
 
-        verticalInnerLayout.getChildren().addAll(shutterPane, shutterPane1, shutterPane2, shutterPane3);
-        verticalScrollPane.setContent(verticalInnerLayout);
-        verticalInnerLayout.setFillWidth(true);
-        verticalInnerLayout.setPadding(
-                new Insets(Constants.INSETS, Constants.INSETS, Constants.INSETS, Constants.INSETS));
-        //TODO: Somehow it won't just fill the remaining size in the VBox - Fix this somehow...
+        titledPaneContainer = new TitledPaneContainer();
+
+        verticalScrollPane.setFitToWidth(true);
+        verticalScrollPane.setContent(titledPaneContainer);
+        //TODO: Find a nicer way to scale the size of the scroll bar thumb
         //CHECKSTYLE.OFF: MagicNumber
-        verticalScrollPane.setPrefHeight(height - 200.0);
+        scrollBar.setVisibleAmount(0.25);
         //CHECKSTYLE.ON: MagicNumber
-        verticalOuterLayout.getChildren().addAll(roomContextInfo, contextSortingPane, verticalScrollPane);
 
-        this.getChildren().add(verticalOuterLayout);
-
-        this.setLeftAnchor(verticalOuterLayout, Constants.INSETS);
-        this.setRightAnchor(verticalOuterLayout, Constants.INSETS);
-        this.setTopAnchor(verticalOuterLayout, Constants.INSETS);
-        this.setBottomAnchor(verticalOuterLayout, Constants.INSETS);
+        this.getChildren().addAll(roomInfo, hiddenSidesPane);
+        //VBox.setVgrow(contextSortingPane, Priority.ALWAYS);
 
         //CHECKSTYLE.OFF: MultipleStringLiterals
-        verticalScrollPane.getStyleClass().add("dropshadow-left-bg");
-        this.getStyleClass().add("dropshadow-left-bg");
+        this.getStyleClass().addAll("detail-menu");
         //CHECKSTYLE.ON: MultipleStringLiterals
     }
 
     /**
-     * Getter for the roomContextInfo Element.
-     * @return Element Instance
+     * Getter Method for the Label.
+     * @return label
      */
-    public RoomContextInfo getRoomContextInfo() {
-        return roomContextInfo;
+    public Label getRoomInfo() {
+        return roomInfo;
+    }
+
+    /**
+     * Getter method for the TitledPaneContainer.
+     * @return TitledPaneContainer
+     */
+    public TitledPaneContainer getTitledPaneContainer() {
+        return titledPaneContainer;
+    }
+
+    /**
+     * Set the new TitledPaneContainer and add it to the VerticalScrollPane.
+     * @param titledPaneContainer titledPaneContainer
+     */
+    public void setTitledPaneContainer(final TitledPaneContainer titledPaneContainer) {
+        this.titledPaneContainer = titledPaneContainer;
+        verticalScrollPane.setContent(this.titledPaneContainer);
+    }
+
+    /**
+     * Clears the vertical ScrollPane of the ContextMenu.
+     */
+    public void clearVerticalScrollPane() {
+        verticalScrollPane.setContent(null);
     }
 }

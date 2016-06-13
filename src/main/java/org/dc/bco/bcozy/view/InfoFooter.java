@@ -18,13 +18,14 @@
  */
 package org.dc.bco.bcozy.view;
 
+import javafx.geometry.Pos;
 import javafx.scene.control.Label;
-import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.BorderPane;
 
 /**
  * Created by hoestreich on 11/10/15.
  */
-public class InfoFooter extends AnchorPane {
+public class InfoFooter extends BorderPane {
 
     private final Label mouseOverText;
     /**
@@ -34,14 +35,13 @@ public class InfoFooter extends AnchorPane {
      */
     public InfoFooter(final double height, final double width) {
         this.mouseOverText = new Label();
-        this.mouseOverText.getStyleClass().add("small-label");
-        this.getChildren().add(mouseOverText);
+        this.mouseOverText.getStyleClass().add("floating-label");
+        //this.mouseOverText.getStyleClass().add("small-label");
+        this.mouseOverText.setAlignment(Pos.CENTER);
+        this.setCenter(mouseOverText);
         this.setPrefHeight(height);
         this.setPrefWidth(width);
-        this.getStyleClass().add("dropshadow-top-bg");
-        this.setLeftAnchor(mouseOverText, Constants.INSETS);
-        this.setRightAnchor(mouseOverText, Constants.INSETS);
-
+        //this.getStyleClass().add("info-footer");
     }
 
     /**

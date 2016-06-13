@@ -18,207 +18,477 @@
  */
 package org.dc.bco.bcozy.view.location;
 
-import javafx.scene.Group;
-import javafx.scene.layout.*;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.image.Image;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
+import javafx.animation.ParallelTransition;
+import javafx.animation.ScaleTransition;
+import javafx.animation.TranslateTransition;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.geometry.Point2D;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
+import javafx.util.Duration;
+import org.dc.bco.bcozy.view.Constants;
+import org.dc.bco.bcozy.view.ForegroundPane;
+import org.dc.bco.bcozy.view.SVGIcon;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Created by hoestreich on 11/10/15.
+ *
  */
-public class LocationPane extends StackPane {
-
-    private static final double ZOOM_PANE_WIDTH = 2000;
-    private static final double ZOOM_PANE_HEIGHT = 2000;
-
-    private final Group locationViewContent;
-    private RoomPolygon selectedRoom;
-    private Group scrollContent;
-    private ScrollPane scroller;
-    private StackPane zoomPane;
-    private final ScrollPane scrollPane;
-    private final List<RoomPolygon> rooms;
+public final class LocationPane extends Pane {
 
     /**
-     * Constructor for the LocationPane.
+     * Singleton instance.
      */
-    public LocationPane() {
+    private static LocationPane instance;
+
+    /**
+     * Application logger.
+     */
+    private static final Logger LOGGER = LoggerFactory.getLogger(LocationPane.class);
+
+    private LocationPolygon selectedLocation;
+    private ZonePolygon rootRoom;
+    private final ForegroundPane foregroundPane;
+    private final Map<String, TilePolygon> tileMap;
+    private final Map<String, RegionPolygon> regionMap;
+    private final SimpleStringProperty selectedLocationId;
+
+    private final Map<String, ConnectionPolygon> connectionMap;
+
+    private LocationPolygon lastFirstClickTarget;
+    private LocationPolygon lastSelectedTile;
+    private final EventHandler<MouseEvent> onEmptyAreaClickHandler;
+
+    /**
+     * Private constructor to deny manual instantiation.
+     *
+     * @param foregroundPane The foregroundPane
+     */
+    private LocationPane(final ForegroundPane foregroundPane) {
         super();
 
-        final Rectangle emptyHugeRectangle = new Rectangle(-(ZOOM_PANE_WIDTH / 2),
-                                                     -(ZOOM_PANE_HEIGHT / 2),
-                ZOOM_PANE_WIDTH,
-                ZOOM_PANE_HEIGHT);
-        emptyHugeRectangle.setFill(Color.TRANSPARENT);
+        this.foregroundPane = foregroundPane;
+
+        tileMap = new HashMap<>();
+        regionMap = new HashMap<>();
+        connectionMap = new HashMap<>();
 
         //Dummy Room
+        selectedLocation = new ZonePolygon(
+                Constants.DUMMY_ROOM_NAME, Constants.DUMMY_ROOM_NAME, new LinkedList<>(), 0.0, 0.0, 0.0, 0.0);
+        selectedLocationId = new SimpleStringProperty(Constants.DUMMY_ROOM_NAME);
 
-        //CHECKSTYLE.OFF: MagicNumber
-        selectedRoom = new RoomPolygon("none", 0.0, 0.0, 0.0, 0.0);
+        rootRoom = null;
+        lastSelectedTile = selectedLocation;
+        lastFirstClickTarget = selectedLocation;
+        onEmptyAreaClickHandler = event -> {
+            if (event.isStillSincePress() && rootRoom != null) {
+                if (event.getClickCount() == 1) {
+                    if (!selectedLocation.equals(rootRoom)) {
+                        selectedLocation.setSelected(false);
+                        rootRoom.setSelected(true);
+                        this.setSelectedLocation(rootRoom);
+                    }
+                } else if (event.getClickCount() == 2) {
+                    this.autoFocusPolygonAnimated(rootRoom);
+                }
 
-        final RoomPolygon room0 = new RoomPolygon("Room0",
-                50.0, 50.0,
-                100.0, 50.0,
-                100.0, 100.0,
-                80.0, 100.0,
-                80.0, 80.0,
-                50.0, 80.0);
+                foregroundPane.getContextMenu().getRoomInfo().setText(selectedLocation.getLabel());
+            }
+        };
 
-        final RoomPolygon room1 = new RoomPolygon("Room1",
-                -10.0, -10.0,
-                -10.0, 10.0,
-                30.0, 30.0,
-                30.0, -10.0);
+        this.heightProperty().addListener((observable, oldValue, newValue) ->
+                this.setTranslateY(this.getTranslateY()
+                        - ((oldValue.doubleValue() - newValue.doubleValue()) / 2) * this.getScaleY()));
 
-        final RoomPolygon room2 = new RoomPolygon("Room2",
-                50.0, -20.0,
-                100.0, -20.0,
-                100.0, 30.0,
-                60.0, 30.0,
-                60.0, 10.0,
-                50.0, 10.0);
+        this.widthProperty().addListener((observable, oldValue, newValue) ->
+                this.setTranslateX(this.getTranslateX()
+                        - ((oldValue.doubleValue() - newValue.doubleValue()) / 2) * this.getScaleX()));
 
-        final RoomPolygon room3 = new RoomPolygon("Room3",
-                -30.0, 50.0,
-                -10.0, 70.0,
-                -10.0, 90.0,
-                -30.0, 110.0,
-                -50.0, 110.0,
-                -70.0, 90.0,
-                -70.0, 70.0,
-                -50.0, 50.0);
-
-        //CHECKSTYLE.ON: MagicNumber
-
-        locationViewContent = new Group(emptyHugeRectangle, room0, room1, room2, room3);
-
-        //TODO: Should the rooms be part of the model?
-        rooms = new ArrayList<RoomPolygon>();
-        rooms.add(room0);
-        rooms.add(room1);
-        rooms.add(room2);
-        rooms.add(room3);
-
-        scrollPane = createZoomPane(locationViewContent);
-
-        this.getChildren().setAll(scrollPane);
-
-        final BackgroundImage backgroundImage = new BackgroundImage(
-                new Image("backgrounds/blueprint.jpg"),
-                BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT,
-                BackgroundSize.DEFAULT);
-        this.setBackground(new Background(backgroundImage));
-
-    }
-
-    private ScrollPane createZoomPane(final Group group) {
-
-        zoomPane = new StackPane();
-
-        zoomPane.getChildren().add(group);
-
-        scroller = new ScrollPane();
-        scrollContent = new Group(zoomPane);
-        scroller.setContent(scrollContent);
-        scroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scroller.getStylesheets().add("css/transparent_scrollpane.css");
-
-        //TODO: what iiiiiis is good for?
-//        scroller.viewportBoundsProperty().addListener((observable, oldValue, newValue) -> {
-//            zoomPane.setMinSize(newValue.getWidth(), newValue.getHeight());
-//        });
-
-        //CHECKSTYLE.OFF: MagicNumber
-        scroller.setPrefViewportWidth(800);
-        scroller.setPrefViewportHeight(600);
-        //CHECKSTYLE.ON: MagicNumber
-
-        return scroller;
+        this.foregroundPane.getMainMenuWidthProperty().addListener((observable, oldValue, newValue) ->
+                this.setTranslateX(this.getTranslateX()
+                        - ((oldValue.doubleValue() - newValue.doubleValue()) / 2)));
     }
 
     /**
-     * Getter for ZoomPaneWidth.
-     * @return the width of the zoomPane
+     * Singleton Pattern. This method call can not be used to instantiate the singleton.
+     * @return the singleton instance of the location pane
+     * @throws InstantiationException thrown if no getInstance(ForegroundPane foregroundPane) is called before
      */
-    public double getZoomPaneWidth() {
-        return ZOOM_PANE_WIDTH;
+    public static LocationPane getInstance() throws InstantiationException {
+        synchronized (LocationPane.class) {
+            if (LocationPane.instance == null) {
+                throw new InstantiationException();
+            }
+        }
+        return LocationPane.instance;
     }
 
     /**
-     * Getter for ZoomPaneHeight.
-     * @return the height of the zoomPane
+     * Singleton Pattern.
+     * @return the singleton instance of the location pane
+     * @param foregroundPane the foreground pane needed for instantiation
      */
-    public double getZoomPaneHeight() {
-        return ZOOM_PANE_HEIGHT;
+    public static LocationPane getInstance(final ForegroundPane foregroundPane) {
+        synchronized (LocationPane.class) {
+            if (LocationPane.instance == null) {
+                LocationPane.instance = new LocationPane(foregroundPane);
+            }
+        }
+        return LocationPane.instance;
     }
 
     /**
-     * Getter for selectedRoom.
-     * @return selectedRoom
+     * Adds a room to the location Pane and use the controls to add a mouse event handler.
+     *
+     * If a room with the same id already exists, it will be overwritten.
+     *
+     * @param locationId    The location id
+     * @param locationLabel The location label
+     * @param childIds      The ids of the children
+     * @param vertices      A list of vertices which defines the shape of the room
+     * @param locationType  The type of the location {ZONE,REGION,TILE}
      */
-    public RoomPolygon getSelectedRoom() {
-        return selectedRoom;
+    public void addLocation(final String locationId, final String locationLabel, final List<String> childIds,
+                            final List<Point2D> vertices, final String locationType) {
+        // Fill the list of vertices into an array of points
+        double[] points = new double[vertices.size() * 2];
+        for (int i = 0; i < vertices.size(); i++) {
+            // TODO: X and Y are swapped in the world of the csra... make it more generic...
+            points[i * 2] = vertices.get(i).getY() * Constants.METER_TO_PIXEL;
+            points[i * 2 + 1] = vertices.get(i).getX() * Constants.METER_TO_PIXEL;
+        }
+
+        LocationPolygon locationPolygon;
+
+        switch (locationType) {
+            case "TILE":
+                locationPolygon = new TilePolygon(locationLabel, locationId, childIds, points);
+                addMouseEventHandlerToTile((TilePolygon) locationPolygon);
+                tileMap.put(locationId, (TilePolygon) locationPolygon);
+                break;
+            case "REGION":
+                locationPolygon = new RegionPolygon(locationLabel, locationId, childIds, points);
+                addMouseEventHandlerToRegion((RegionPolygon) locationPolygon);
+                regionMap.put(locationId, (RegionPolygon) locationPolygon);
+                break;
+            case "ZONE":
+                locationPolygon = new ZonePolygon(locationLabel, locationId, childIds, points);
+                rootRoom = (ZonePolygon) locationPolygon; //TODO: handle the situation where several zones exist
+                break;
+            default:
+                LOGGER.warn("The following location has an unknown LocationType and will be ignored:"
+                        + "\n  location UUID:  " + locationId
+                        + "\n  location Label: " + locationLabel
+                        + "\n  location Type:  " + locationType);
+                break;
+        }
     }
 
     /**
-     * Getter for scrollContent.
-     * @return scrollContent
+     * Adds a connection to the location Pane.
+     *
+     * If a connection with the same id already exists, it will be overwritten.
+     *
+     * @param connectionId    The connection id
+     * @param connectionLabel The connection label
+     * @param vertices        A list of vertices which defines the shape of the connection
+     * @param connectionType  The type of the connection {DOOR,WINDOW,PASSAGE}
+     * @param locationIds     The IDs of the location that will be connected by this connection
      */
-    public Group getScrollContent() {
-        return scrollContent;
+    public void addConnection(final String connectionId, final String connectionLabel,
+                              final List<Point2D> vertices, final String connectionType,
+                              final List<String> locationIds) {
+        // Fill the list of vertices into an array of points
+        double[] points = new double[vertices.size() * 2];
+        for (int i = 0; i < vertices.size(); i++) {
+            // TODO: X and Y are swapped in the world of the csra... make it more generic...
+            points[i * 2] = vertices.get(i).getY() * Constants.METER_TO_PIXEL;
+            points[i * 2 + 1] = vertices.get(i).getX() * Constants.METER_TO_PIXEL;
+        }
+
+        ConnectionPolygon connectionPolygon;
+
+        switch (connectionType) {
+            case "DOOR":
+                connectionPolygon = new DoorPolygon(connectionLabel, connectionId, points);
+                break;
+            case "WINDOW":
+                connectionPolygon = new WindowPolygon(connectionLabel, connectionId, points);
+                break;
+            case "PASSAGE":
+                connectionPolygon = new PassagePolygon(connectionLabel, connectionId, points);
+                break;
+            default:
+                LOGGER.warn("The following connection has an unknown LocationType and will be ignored:"
+                        + "\n  connection UUID:  " + connectionId
+                        + "\n  connection Label: " + connectionLabel
+                        + "\n  connection Type:  " + connectionType);
+                return;
+        }
+
+        connectionMap.put(connectionId, connectionPolygon);
+
+        locationIds.forEach(locationId -> {
+            if (tileMap.containsKey(locationId)) {
+                final LocationPolygon locationPolygon = tileMap.get(locationId);
+                locationPolygon.addCuttingShape(connectionPolygon);
+            } else {
+                LOGGER.error("Location ID \"" + locationId + "\" can not be found in the location Map. "
+                        + "No Cutting will be applied");
+            }
+        });
     }
 
     /**
-     * Getter for scroller.
-     * @return scroller
+     * Will add a UnitIcon to the locationPane.
+     * @param svgIcon The icon
+     * @param onActionHandler The Handler that gets activated when the button is pressed
+     * @param position The position where the button is to be placed
      */
-    public ScrollPane getScroller() {
-        return scroller;
+    public void addUnit(final SVGIcon svgIcon, final EventHandler<ActionEvent> onActionHandler,
+                        final Point2D position) {
+        final UnitButton unitButton = new UnitButton(svgIcon, onActionHandler);
+        unitButton.setTranslateX(position.getX());
+        unitButton.setTranslateY(position.getY());
+        this.getChildren().add(unitButton);
     }
 
     /**
-     * Getter for zoomPane.
-     * @return zoomPane
+     * Erases all locations from the locationPane.
      */
-    public StackPane getZoomPane() {
-        return zoomPane;
+    public void clearLocations() {
+        tileMap.forEach((locationId, locationPolygon) -> this.getChildren().remove(locationPolygon));
+        tileMap.clear();
+
+        regionMap.forEach((locationId, locationPolygon) -> this.getChildren().remove(locationPolygon));
+        regionMap.clear();
+
+        rootRoom = null;
     }
 
     /**
-     * Getter for locationViewContent.
-     * @return locationViewContent
+     * Erases all connections from the locationPane.
      */
-    public Group getLocationViewContent() {
-        return locationViewContent;
+    public void clearConnections() {
+        connectionMap.forEach((connectionId, connectionPolygon) -> this.getChildren().remove(connectionPolygon));
+        connectionMap.clear();
     }
 
     /**
-     * Getter for scrollPane.
-     * @return scrollPane
+     * Will clear everything on the location Pane and then add everything that is saved in the maps.
+     * Also adds a cutting shape for every Polygon to the root.
      */
-    public ScrollPane getScrollPane() {
-        return scrollPane;
+    public void updateLocationPane() {
+        this.getChildren().clear();
+
+        tileMap.forEach((locationId, locationPolygon) -> {
+            rootRoom.addCuttingShape(locationPolygon);
+            this.getChildren().add(locationPolygon);
+        });
+
+        regionMap.forEach((locationId, locationPolygon) -> {
+            rootRoom.addCuttingShape(locationPolygon);
+            this.getChildren().add(locationPolygon);
+        });
+
+        connectionMap.forEach((connectionId, connectionPolygon) -> {
+            rootRoom.addCuttingShape(connectionPolygon);
+            this.getChildren().add(connectionPolygon);
+        });
+
+        if (rootRoom != null) {
+            this.getChildren().add(rootRoom);
+        }
     }
 
     /**
-     * Setter for selectedRoom.
-     * @param selectedRoom Room to select
+     * Adds a mouse eventHandler to the tile.
+     *
+     * @param tile The tile
      */
-    public void setSelectedRoom(final RoomPolygon selectedRoom) {
-        this.selectedRoom = selectedRoom;
+    public void addMouseEventHandlerToTile(final TilePolygon tile) {
+        tile.setOnMouseClicked(event -> {
+            event.consume();
+
+            if (event.isStillSincePress()) {
+                if (event.getClickCount() == 1) {
+                    this.setSelectedLocation(tile);
+                    this.lastFirstClickTarget = tile;
+                } else if (event.getClickCount() == 2) {
+                    autoFocusPolygonAnimated(tile);
+                }
+            }
+        });
+        tile.setOnMouseEntered(event -> {
+            event.consume();
+            tile.mouseEntered();
+            foregroundPane.getInfoFooter().getMouseOverText().setText(tile.getLabel());
+        });
+        tile.setOnMouseExited(event -> {
+            event.consume();
+            tile.mouseLeft();
+            foregroundPane.getInfoFooter().getMouseOverText().setText("");
+        });
     }
 
     /**
-     * Getter for the roomList.
-     * @return roomList
+     * Adds a mouse eventHandler to the region.
+     *
+     * @param region The region
      */
-    public List<RoomPolygon> getRooms() {
-        return rooms;
+    public void addMouseEventHandlerToRegion(final RegionPolygon region) {
+        region.setOnMouseClicked(event -> {
+            event.consume();
+
+            if (event.isStillSincePress()) {
+                if (event.getClickCount() == 1) {
+                    this.setSelectedLocation(region);
+                    this.lastFirstClickTarget = region;
+                } else if (event.getClickCount() == 2) {
+                    if (this.lastFirstClickTarget.equals(region)) {
+                        autoFocusPolygonAnimated(region);
+                    } else {
+                        selectedLocation.fireEvent(event.copyFor(null, selectedLocation));
+                    }
+                }
+            }
+        });
+        region.setOnMouseEntered(event -> {
+            event.consume();
+            region.mouseEntered();
+            foregroundPane.getInfoFooter().getMouseOverText().setText(region.getLabel());
+        });
+        region.setOnMouseExited(event -> {
+            event.consume();
+            region.mouseLeft();
+            foregroundPane.getInfoFooter().getMouseOverText().setText("");
+        });
+    }
+
+    private void setSelectedLocation(final LocationPolygon newSelectedLocation) {
+        if (!this.selectedLocation.equals(newSelectedLocation)) {
+            if (!newSelectedLocation.getClass().equals(RegionPolygon.class)) {
+                this.lastSelectedTile.getChildIds().forEach(childId ->
+                        (regionMap.get(childId)).changeStyleOnSelectable(false));
+            }
+
+            if (newSelectedLocation.getClass().equals(TilePolygon.class)) {
+                this.lastSelectedTile = newSelectedLocation;
+                newSelectedLocation.getChildIds().forEach(childId ->
+                        (regionMap.get(childId)).changeStyleOnSelectable(true));
+            }
+
+            this.selectedLocation.setSelected(false);
+            newSelectedLocation.setSelected(true);
+            this.selectedLocation = newSelectedLocation;
+            this.selectedLocationId.set(newSelectedLocation.getUuid());
+
+            foregroundPane.getContextMenu().getRoomInfo().setText(selectedLocation.getLabel());
+        }
+    }
+
+    /**
+     * ZoomFits to the root if available. Otherwise to the first location in the tileMap.
+     */
+    public void zoomFit() {
+        if (rootRoom != null) { //NOPMD
+            autoFocusPolygon(rootRoom);
+        } else if (!tileMap.isEmpty()) {
+            autoFocusPolygon(tileMap.values().iterator().next());
+        }
+    }
+
+    /**
+     * Adds a change listener to the selectedRoomID property.
+     *
+     * @param changeListener The change Listener
+     */
+    public void addSelectedLocationIdListener(final ChangeListener<? super String> changeListener) {
+        selectedLocationId.addListener(changeListener);
+    }
+
+    /**
+     * Remove the specified change listener from the selectedRoomID property.
+     *
+     * @param changeListener The change Listener
+     */
+    public void removeSelectedLocationIdListener(final ChangeListener<? super String> changeListener) {
+        selectedLocationId.removeListener(changeListener);
+    }
+
+    /**
+     * Getter for the OnEmptyAreaClickHandler.
+     *
+     * @return The EventHandler.
+     */
+    public EventHandler<MouseEvent> getOnEmptyAreaClickHandler() {
+        return onEmptyAreaClickHandler;
+    }
+
+    private void autoFocusPolygon(final LocationPolygon polygon) {
+        final double xScale = (foregroundPane.getBoundingBox().getWidth() / polygon.prefWidth(0))
+                * Constants.ZOOM_FIT_PERCENTAGE_WIDTH;
+        final double yScale = (foregroundPane.getBoundingBox().getHeight() / polygon.prefHeight(0))
+                * Constants.ZOOM_FIT_PERCENTAGE_HEIGHT;
+        final double scale = (xScale < yScale) ? xScale : yScale;
+
+        this.setScaleX(scale);
+        this.setScaleY(scale);
+
+        final Point2D transition = calculateTransition(scale, polygon);
+
+        this.setTranslateX(transition.getX());
+        this.setTranslateY(transition.getY());
+    }
+
+    private void autoFocusPolygonAnimated(final LocationPolygon polygon) {
+        final double xScale = (foregroundPane.getBoundingBox().getWidth() / polygon.prefWidth(0))
+                * Constants.ZOOM_FIT_PERCENTAGE_WIDTH;
+        final double yScale = (foregroundPane.getBoundingBox().getHeight() / polygon.prefHeight(0))
+                * Constants.ZOOM_FIT_PERCENTAGE_HEIGHT;
+        final double scale = (xScale < yScale) ? xScale : yScale;
+
+        final ScaleTransition scaleTransition = new ScaleTransition(Duration.millis(500));
+        scaleTransition.setToX(scale);
+        scaleTransition.setToY(scale);
+        scaleTransition.setCycleCount(1);
+        scaleTransition.setAutoReverse(true);
+
+        final Point2D transition = calculateTransition(scale, polygon);
+
+        final TranslateTransition translateTransition = new TranslateTransition(Duration.millis(500));
+        translateTransition.setToX(transition.getX());
+        translateTransition.setToY(transition.getY());
+        translateTransition.setCycleCount(1);
+        translateTransition.setAutoReverse(true);
+
+        final ParallelTransition parallelTransition =
+                new ParallelTransition(this, scaleTransition, translateTransition);
+        parallelTransition.play();
+    }
+
+    private Point2D calculateTransition(final double scale, final LocationPolygon polygon) {
+        final double polygonDistanceToCenterX = (-(polygon.getCenterX() - (getLayoutBounds().getWidth() / 2))) * scale;
+        final double polygonDistanceToCenterY = (-(polygon.getCenterY() - (getLayoutBounds().getHeight() / 2))) * scale;
+        final double boundingBoxCenterX =
+                (foregroundPane.getBoundingBox().getMinX() + foregroundPane.getBoundingBox().getMaxX()) / 2;
+        final double boundingBoxCenterY =
+                (foregroundPane.getBoundingBox().getMinY() + foregroundPane.getBoundingBox().getMaxY()) / 2;
+        final double bbCenterDistanceToCenterX = ((getLayoutBounds().getWidth() / 2) - boundingBoxCenterX);
+        final double bbCenterDistanceToCenterY = ((getLayoutBounds().getHeight() / 2) - boundingBoxCenterY);
+        final double transitionX = polygonDistanceToCenterX - bbCenterDistanceToCenterX;
+        final double transitionY = polygonDistanceToCenterY - bbCenterDistanceToCenterY;
+
+        return new Point2D(transitionX, transitionY);
     }
 }
