@@ -58,14 +58,15 @@ public class BackgroundPane extends StackPane {
 
             // Touch Support
             PauseTransition holdTimer = new PauseTransition(Duration.seconds(1));
-            holdTimer.setOnFinished(event -> locationPane.getOnEmptyAreaLongTouchHandler());
-            this.setOnTouchStationary((event) -> {
+            holdTimer.setOnFinished(event -> 
+                locationPane.getOnEmptyAreaLongTouchHandler());
+     /*       this.setOnTouchStationary((event) -> {
                 holdTimer.playFromStart();
             });
             this.setOnTouchReleased((event) -> {
 
                 holdTimer.stop();
-            });
+            });*/
 
             this.setOnTouchPressed((touchEvent) -> {
                 this.prevMouseCordX = touchEvent.getTouchPoint().getX();
@@ -80,14 +81,14 @@ public class BackgroundPane extends StackPane {
                 this.prevMouseCordY = touchEvent.getTouchPoint().getY();
             });
 
-            this.setOnZoom((event) -> {
-                double zoomFactor = event.getZoomFactor();
-                zoomFactor *= zoomFactor < 1.0 ? -1 : 1;
+            this.setOnZoom((event) -> {            
+                final double zoomFactor = event.getZoomFactor() > 0 ? Constants.SCALE_DELTA : 1 / Constants.SCALE_DELTA;
 
-                locationPane.setScaleX(locationPane.getScaleX() * zoomFactor / 50); //TODO divide necessary?
-                locationPane.setScaleY(locationPane.getScaleY() * zoomFactor / 50);
-                locationPane.setTranslateX(locationPane.getTranslateX() * zoomFactor / 50);
-                locationPane.setTranslateY(locationPane.getTranslateY() * zoomFactor / 50);
+                locationPane.setScaleX(locationPane.getScaleX() * zoomFactor); 
+                locationPane.setScaleY(locationPane.getScaleY() * zoomFactor);
+                locationPane.setTranslateX(locationPane.getTranslateX() * zoomFactor);
+                locationPane.setTranslateY(locationPane.getTranslateY() * zoomFactor);
+                event.consume();
             });
 
             // Mouse Handling
