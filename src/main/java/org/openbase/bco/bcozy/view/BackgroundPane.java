@@ -18,7 +18,9 @@
  */
 package org.openbase.bco.bcozy.view;
 
+import javafx.animation.PauseTransition;
 import javafx.scene.layout.StackPane;
+import javafx.util.Duration;
 import org.openbase.bco.bcozy.view.location.LocationPane;
 import org.openbase.jul.exception.CouldNotPerformException;
 import org.openbase.jul.exception.InstantiationException;
@@ -44,16 +46,51 @@ public class BackgroundPane extends StackPane {
         try {
 
             locationPane = LocationPane.getInstance(foregroundPane);
-            this.getChildren().add(locationPane); 
-            
+            this.getChildren().add(locationPane);
+
             unitSymbolsPane = new UnitSymbolsPane();
             unitSymbolsPane.setPickOnBounds(false);
             this.getChildren().add(unitSymbolsPane);
-            
+
             unitSymbolsPane.selectedLocationId.bind(locationPane.selectedLocationId);
-            
+
             this.getStyleClass().add("background-pane");
 
+            // Touch Support
+            PauseTransition holdTimer = new PauseTransition(Duration.seconds(1));
+            holdTimer.setOnFinished(event -> locationPane.getOnEmptyAreaLongTouchHandler());
+            this.setOnTouchStationary((event) -> {
+                holdTimer.playFromStart();
+            });
+            this.setOnTouchReleased((event) -> {
+
+                holdTimer.stop();
+            });
+
+            this.setOnTouchPressed((touchEvent) -> {
+                this.prevMouseCordX = touchEvent.getTouchPoint().getX();
+                this.prevMouseCordY = touchEvent.getTouchPoint().getY();
+            });
+
+            this.setOnTouchMoved((touchEvent) -> {
+                holdTimer.stop();
+                locationPane.setTranslateX(locationPane.getTranslateX() + (touchEvent.getTouchPoint().getX() - prevMouseCordX));
+                locationPane.setTranslateY(locationPane.getTranslateY() + (touchEvent.getTouchPoint().getY() - prevMouseCordY));
+                this.prevMouseCordX = touchEvent.getTouchPoint().getX();
+                this.prevMouseCordY = touchEvent.getTouchPoint().getY();
+            });
+
+            this.setOnZoom((event) -> {
+                double zoomFactor = event.getZoomFactor();
+                zoomFactor *= zoomFactor < 1.0 ? -1 : 1;
+
+                locationPane.setScaleX(locationPane.getScaleX() * zoomFactor / 50); //TODO divide necessary?
+                locationPane.setScaleY(locationPane.getScaleY() * zoomFactor / 50);
+                locationPane.setTranslateX(locationPane.getTranslateX() * zoomFactor / 50);
+                locationPane.setTranslateY(locationPane.getTranslateY() * zoomFactor / 50);
+            });
+
+            // Mouse Handling
             this.setOnMousePressed(event -> {
                 this.prevMouseCordX = event.getX();
                 this.prevMouseCordY = event.getY();
@@ -93,11 +130,11 @@ public class BackgroundPane extends StackPane {
     public UnitSymbolsPane getUnitsPane() {
         return unitSymbolsPane;
     }
-    
-       /**
+
+    /**
      * @return The Location Pane.
      */
-    public LocationPane getLocationPane() {  
+    public LocationPane getLocationPane() {
         return locationPane;
     }
 }

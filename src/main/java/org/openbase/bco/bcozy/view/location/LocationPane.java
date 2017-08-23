@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import javafx.scene.input.TouchEvent;
 import org.openbase.bco.bcozy.view.InfoPane;
 import org.openbase.bco.registry.remote.Registries;
 import org.openbase.jul.exception.CouldNotPerformException;
@@ -77,6 +79,8 @@ public final class LocationPane extends Pane {
     private LocationPolygon lastFirstClickTarget;
     private LocationPolygon lastSelectedTile;
     private final EventHandler<MouseEvent> onEmptyAreaClickHandler;
+    private final EventHandler<TouchEvent> onEmptyAreaTouchHandler;
+    private final EventHandler<TouchEvent> onEmptyAreaLongTouchHandler;
 
     /**
      * Private constructor to deny manual instantiation.
@@ -132,18 +136,49 @@ public final class LocationPane extends Pane {
             }
         };
 
+        onEmptyAreaTouchHandler = event -> {
+            if (rootRoom != null) {
+                if (!rootRoom.equals(selectedLocation)) {
+                    if (selectedLocation != null) {
+                        selectedLocation.setSelected(false);
+                    }
+                    rootRoom.setSelected(true);
+                    try {
+                        this.setSelectedLocation(rootRoom);
+                    } catch (CouldNotPerformException ex) {
+                        ExceptionPrinter.printHistory("Could not handle touch event!", ex, LOGGER);
+                    }
+                }
+            }
+            try {
+                foregroundPane.getContextMenu().getRoomInfo().setText(selectedLocation.getLabel());
+            } catch (NotAvailableException ex) {
+                LOGGER.warn("Could not resolve location label!", ex);
+            }
+        };
+
+        onEmptyAreaLongTouchHandler = event -> {
+            this.autoFocusPolygonAnimated(rootRoom);
+            try {
+                foregroundPane.getContextMenu().getRoomInfo().setText(selectedLocation.getLabel());
+            } catch (NotAvailableException ex) {
+                LOGGER.warn("Could not resolve location label!", ex);
+            }
+        };
+
         this.heightProperty().addListener((observable, oldValue, newValue)
-                -> this.setTranslateY(this.getTranslateY() - ((oldValue.doubleValue() - newValue.doubleValue()) / 2) * this.getScaleY()));
+            -> this.setTranslateY(this.getTranslateY() - ((oldValue.doubleValue() - newValue.doubleValue()) / 2) * this.getScaleY()));
 
         this.widthProperty().addListener((observable, oldValue, newValue)
-                -> this.setTranslateX(this.getTranslateX() - ((oldValue.doubleValue() - newValue.doubleValue()) / 2) * this.getScaleX()));
+            -> this.setTranslateX(this.getTranslateX() - ((oldValue.doubleValue() - newValue.doubleValue()) / 2) * this.getScaleX()));
 
         this.foregroundPane.getMainMenuWidthProperty().addListener((observable, oldValue, newValue)
-                -> this.setTranslateX(this.getTranslateX() - ((oldValue.doubleValue() - newValue.doubleValue()) / 2)));
+            -> this.setTranslateX(this.getTranslateX() - ((oldValue.doubleValue() - newValue.doubleValue()) / 2)));
 //        } catch (CouldNotPerformException ex) {
 //            throw new org.openbase.jul.exception.InstantiationException(this, ex);
 //        }
     }
+
 
     /**
      * Singleton Pattern. This method call can not be used to instantiate the
@@ -577,11 +612,19 @@ public final class LocationPane extends Pane {
         return onEmptyAreaClickHandler;
     }
 
+    public EventHandler<TouchEvent> getOnEmptyAreaTouchHandler() {
+        return onEmptyAreaTouchHandler;
+    }
+
+    public EventHandler<TouchEvent> getOnEmptyAreaLongTouchHandler() {
+        return onEmptyAreaLongTouchHandler;
+    }
+
     private void autoFocusPolygon(final LocationPolygon polygon) {
         final double xScale = (foregroundPane.getBoundingBox().getWidth() / polygon.prefWidth(0))
-                * Constants.ZOOM_FIT_PERCENTAGE_WIDTH;
+            * Constants.ZOOM_FIT_PERCENTAGE_WIDTH;
         final double yScale = (foregroundPane.getBoundingBox().getHeight() / polygon.prefHeight(0))
-                * Constants.ZOOM_FIT_PERCENTAGE_HEIGHT;
+            * Constants.ZOOM_FIT_PERCENTAGE_HEIGHT;
         final double scale = (xScale < yScale) ? xScale : yScale;
 
         this.setScaleX(scale);
@@ -595,9 +638,9 @@ public final class LocationPane extends Pane {
 
     private void autoFocusPolygonAnimated(final LocationPolygon polygon) {
         final double xScale = (foregroundPane.getBoundingBox().getWidth() / polygon.prefWidth(0))
-                * Constants.ZOOM_FIT_PERCENTAGE_WIDTH;
+            * Constants.ZOOM_FIT_PERCENTAGE_WIDTH;
         final double yScale = (foregroundPane.getBoundingBox().getHeight() / polygon.prefHeight(0))
-                * Constants.ZOOM_FIT_PERCENTAGE_HEIGHT;
+            * Constants.ZOOM_FIT_PERCENTAGE_HEIGHT;
         final double scale = (xScale < yScale) ? xScale : yScale;
 
         final ScaleTransition scaleTransition = new ScaleTransition(Duration.millis(500));
@@ -615,7 +658,7 @@ public final class LocationPane extends Pane {
         translateTransition.setAutoReverse(true);
 
         final ParallelTransition parallelTransition
-                = new ParallelTransition(this, scaleTransition, translateTransition);
+            = new ParallelTransition(this, scaleTransition, translateTransition);
         parallelTransition.play();
     }
 
@@ -623,9 +666,9 @@ public final class LocationPane extends Pane {
         final double polygonDistanceToCenterX = (-(polygon.getCenterX() - (getLayoutBounds().getWidth() / 2))) * scale;
         final double polygonDistanceToCenterY = (-(polygon.getCenterY() - (getLayoutBounds().getHeight() / 2))) * scale;
         final double boundingBoxCenterX
-                = (foregroundPane.getBoundingBox().getMinX() + foregroundPane.getBoundingBox().getMaxX()) / 2;
+            = (foregroundPane.getBoundingBox().getMinX() + foregroundPane.getBoundingBox().getMaxX()) / 2;
         final double boundingBoxCenterY
-                = (foregroundPane.getBoundingBox().getMinY() + foregroundPane.getBoundingBox().getMaxY()) / 2;
+            = (foregroundPane.getBoundingBox().getMinY() + foregroundPane.getBoundingBox().getMaxY()) / 2;
         final double bbCenterDistanceToCenterX = ((getLayoutBounds().getWidth() / 2) - boundingBoxCenterX);
         final double bbCenterDistanceToCenterY = ((getLayoutBounds().getHeight() / 2) - boundingBoxCenterY);
         final double transitionX = polygonDistanceToCenterX - bbCenterDistanceToCenterX;
