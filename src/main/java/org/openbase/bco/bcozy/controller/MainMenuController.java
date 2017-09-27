@@ -19,12 +19,11 @@
 package org.openbase.bco.bcozy.controller;
 
 import javafx.application.Platform;
+import org.openbase.bco.authentication.lib.SessionManager;
 import org.openbase.bco.bcozy.view.ForegroundPane;
 import org.openbase.bco.bcozy.view.mainmenupanes.AvailableUsersPane;
 import org.openbase.bco.bcozy.view.mainmenupanes.ConnectionPane;
 import org.openbase.bco.bcozy.view.mainmenupanes.LoginPane;
-import org.openbase.bco.authentication.lib.SessionManager;
-
 import org.openbase.bco.registry.remote.Registries;
 import org.openbase.jul.exception.CouldNotPerformException;
 import org.openbase.jul.exception.InvalidStateException;
@@ -73,6 +72,33 @@ public class MainMenuController {
 
         foregroundPane.getMainMenu().getMainMenuFloatingButton().setOnAction(event -> showHideMainMenu(foregroundPane));
 
+        SessionManager.getInstance().addLoginObserver((observable, userAtClientId) -> onLoggedInChanged(userAtClientId));
+
+    }
+
+    private void onLoggedInChanged(final String userAtClientId) {
+        System.err.println("MainMenuController.onLoggedInChanged: " + userAtClientId);
+        if (userAtClientId.equals("@")) {
+            afterLogout();
+        } else {
+            afterLogin();
+        }
+    }
+
+    private void afterLogin() {
+
+    }
+
+    private void afterLogout() {
+        Platform.runLater(() -> {
+            if (loginPane.getInputWrongLbl().isVisible()) {
+                loginPane.resetUserOrPasswordWrong();
+            }
+            loginPane.getNameTxt().setText("");
+            loginPane.getPasswordField().setText("");
+            loginPane.getLoggedInUserLbl().setText("");
+            loginPane.setState(LoginPane.State.LOGINACTIVE);
+        });
     }
 
     private void startLogin() {
@@ -135,14 +161,6 @@ public class MainMenuController {
 
     private void resetLogin() {
         SessionManager.getInstance().logout();
-
-        if (loginPane.getInputWrongLbl().isVisible()) {
-            loginPane.resetUserOrPasswordWrong();
-        }
-        loginPane.getNameTxt().setText("");
-        loginPane.getPasswordField().setText("");
-        loginPane.getLoggedInUserLbl().setText("");
-        loginPane.setState(LoginPane.State.LOGINACTIVE);
     }
 
     private void showHideMainMenu(final ForegroundPane foregroundPane) {
